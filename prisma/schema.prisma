@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SHELTER
+}
+
+enum AnimalStatus {
+  AVAILABLE
+  PENDING
+  ADOPTED
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  phone        String?
+  role         UserRole @default(USER)
+  avatarUrl    String?
+  avatarPublicId String?
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+
+  applications AdoptionApplication[]
+
+  reminders CareReminder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Shelter {
+  id             String    @id @default(uuid())
+  name           String
+  description    String
+  address        String
+  phone          String
+  email          String
+  foundationDate DateTime?
+  workingHours   String?
+
+  animals Animal[]
+  images  ShelterImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ShelterImage {
+  id       String @id @default(uuid())
+  imageUrl String
+  publicId  String?
+
+  shelter   Shelter @relation(fields: [shelterId], references: [id], onDelete: Cascade)
+  shelterId String
+}
+
+model Animal {
+  id           String       @id @default(uuid())
+  name         String
+  type         String
+  gender       String
+  age          Int
+  breed        String?
+  healthStatus String
+  description  String
+  status       AnimalStatus @default(AVAILABLE)
+
+  shelter   Shelter @relation(fields: [shelterId], references: [id], onDelete: Cascade)
+  shelterId String
+
+  images       AnimalImage[]
+  applications AdoptionApplication[]
+  reminders    CareReminder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AnimalImage {
+  id       String @id @default(uuid())
+  imageUrl String
+  publicId  String?
+
+  animal   Animal @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  animalId String
+}
+
+model AdoptionApplication {
+  id      String            @id @default(uuid())
+  message String?
+  status  ApplicationStatus @default(PENDING)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  animal   Animal @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  animalId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CareReminder {
+  id           String         @id @default(uuid())
+  title        String
+  description  String?
+  reminderDate DateTime
+  status       ReminderStatus @default(PENDING)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  animalId String?
+  animal   Animal? @relation(fields: [animalId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+enum ReminderStatus {
+  PENDING
+  DONE
+}
+
+model Article {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+}
