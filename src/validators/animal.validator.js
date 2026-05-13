@@ -1,9 +1,22 @@
 import { z } from "zod";
+import {
+    animalGenderValues,
+    animalTypeValues,
+    normalizeAnimalGender,
+    normalizeAnimalType,
+} from "../utils/animalEnums.js";
 
 export const createAnimalSchema = z.object({
     name: z.string().min(1, "Name is required"),
-    type: z.string().min(1, "Type is required"),
-    gender: z.string().min(1, "Gender is required"),
+    type: z.preprocess(
+        normalizeAnimalType,
+        z.enum(animalTypeValues)
+    ),
+    gender: z.preprocess(
+        normalizeAnimalGender,
+        z.enum(animalGenderValues)
+    ),
+    city: z.string().optional(),
     age: z.number().int().nonnegative(),
     breed: z.string().optional(),
     healthStatus: z.string().min(1, "Health status is required"),

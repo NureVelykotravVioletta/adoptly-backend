@@ -5,6 +5,7 @@ export const getAllShelters = async (req, res, next) => {
         const {
             search,
             address,
+            city,
             page = 1,
             limit = 10,
         } = req.query;
@@ -20,6 +21,12 @@ export const getAllShelters = async (req, res, next) => {
                     mode: "insensitive",
                 },
             }),
+            ...(city && {
+                city: {
+                    contains: city,
+                    mode: "insensitive",
+                },
+            }),
             ...(search && {
                 OR: [
                     {
@@ -30,6 +37,12 @@ export const getAllShelters = async (req, res, next) => {
                     },
                     {
                         description: {
+                            contains: search,
+                            mode: "insensitive",
+                        },
+                    },
+                    {
+                        city: {
                             contains: search,
                             mode: "insensitive",
                         },
@@ -122,6 +135,7 @@ export const createShelter = async (req, res, next) => {
         const {
             name,
             description,
+            city,
             address,
             phone,
             email,
@@ -133,6 +147,7 @@ export const createShelter = async (req, res, next) => {
             data: {
                 name,
                 description,
+                city,
                 address,
                 phone,
                 email,
@@ -152,15 +167,25 @@ export const updateShelter = async (req, res, next) => {
         const { id } = req.params;
         const { foundationDate, ...rest } = req.body;
 
-        const shelter = await prisma.shelter.update({
-            where: { id },
-            data: {
-                ...rest,
-                ...(foundationDate !== undefined && {
-                    foundationDate: foundationDate ? new Date(foundationDate) : null,
-                }),
-            },
-        });
+        const [shelter] = await prisma.$transaction([
+            prisma.shelter.update({
+                where: { id },
+                data: {
+                    ...rest,
+                    ...(foundationDate !== undefined && {
+                        foundationDate: foundationDate ? new Date(foundationDate) : null,
+                    }),
+                },
+            }),
+            ...(rest.city !== undefined
+                ? [
+                      prisma.animal.updateMany({
+                          where: { shelterId: id },
+                          data: { city: rest.city },
+                      }),
+                  ]
+                : []),
+        ]);
 
         res.json(shelter);
     } catch (error) {

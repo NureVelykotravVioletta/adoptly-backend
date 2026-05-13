@@ -19,6 +19,16 @@ enum AnimalStatus {
   ADOPTED
 }
 
+enum AnimalType {
+  CAT
+  DOG
+}
+
+enum AnimalGender {
+  MALE
+  FEMALE
+}
+
 enum ApplicationStatus {
   PENDING
   APPROVED
@@ -26,20 +36,21 @@ enum ApplicationStatus {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  phone        String?
-  role         UserRole @default(USER)
-  avatarUrl    String?
-  avatarPublicId String?
+  id                   String    @id @default(uuid())
+  name                 String
+  email                String    @unique
+  passwordHash         String
+  phone                String?
+  role                 UserRole  @default(USER)
+  avatarUrl            String?
+  avatarPublicId       String?
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
 
   applications AdoptionApplication[]
 
-  reminders CareReminder[]
+  reminders    CareReminder[]
+  likedAnimals UserLikedAnimal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -49,6 +60,7 @@ model Shelter {
   id             String    @id @default(uuid())
   name           String
   description    String
+  city           String    @default("Невідоме місто")
   address        String
   phone          String
   email          String
@@ -63,9 +75,9 @@ model Shelter {
 }
 
 model ShelterImage {
-  id       String @id @default(uuid())
+  id       String  @id @default(uuid())
   imageUrl String
-  publicId  String?
+  publicId String?
 
   shelter   Shelter @relation(fields: [shelterId], references: [id], onDelete: Cascade)
   shelterId String
@@ -74,8 +86,9 @@ model ShelterImage {
 model Animal {
   id           String       @id @default(uuid())
   name         String
-  type         String
-  gender       String
+  type         AnimalType
+  gender       AnimalGender
+  city         String       @default("Невідоме місто")
   age          Int
   breed        String?
   healthStatus String
@@ -88,15 +101,29 @@ model Animal {
   images       AnimalImage[]
   applications AdoptionApplication[]
   reminders    CareReminder[]
+  likedByUsers UserLikedAnimal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+model UserLikedAnimal {
+  userId   String
+  animalId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  animal Animal @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, animalId])
+  @@index([animalId])
+}
+
 model AnimalImage {
-  id       String @id @default(uuid())
+  id       String  @id @default(uuid())
   imageUrl String
-  publicId  String?
+  publicId String?
 
   animal   Animal @relation(fields: [animalId], references: [id], onDelete: Cascade)
   animalId String

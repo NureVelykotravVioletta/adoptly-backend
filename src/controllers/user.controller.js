@@ -2,27 +2,54 @@ import { prisma } from "../lib/prisma.js";
 import cloudinary from "../lib/cloudinary.js";
 import { uploadToCloudinary } from "../utils/uploadToCloudinary.js";
 
+const animalInclude = {
+    images: true,
+    shelter: true,
+};
+
+const userSelect = {
+    id: true,
+    name: true,
+    email: true,
+    phone: true,
+    avatarUrl: true,
+    role: true,
+    likedAnimals: {
+        include: {
+            animal: {
+                include: animalInclude,
+            },
+        },
+        orderBy: {
+            createdAt: "desc",
+        },
+    },
+    createdAt: true,
+    updatedAt: true,
+};
+
+const formatLikedAnimal = ({ animal, createdAt }) => ({
+    ...animal,
+    likedAt: createdAt,
+});
+
+const formatUser = ({ likedAnimals = [], ...user }) => ({
+    ...user,
+    likedAnimals: likedAnimals.map(formatLikedAnimal),
+});
+
 export const getMe = async (req, res, next) => {
     try {
         const user = await prisma.user.findUnique({
             where: { id: req.user.id },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                avatarUrl: true,
-                role: true,
-                createdAt: true,
-                updatedAt: true,
-            },
+            select: userSelect,
         });
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        res.json(user);
+        res.json(formatUser(user));
     } catch (error) {
         next(error);
     }
@@ -38,19 +65,10 @@ export const updateMe = async (req, res, next) => {
                 ...(name !== undefined && { name }),
                 ...(phone !== undefined && { phone }),
             },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                avatarUrl: true,
-                role: true,
-                createdAt: true,
-                updatedAt: true,
-            },
+            select: userSelect,
         });
 
-        res.json(updatedUser);
+        res.json(formatUser(updatedUser));
     } catch (error) {
         next(error);
     }
@@ -82,19 +100,10 @@ export const uploadMyAvatar = async (req, res, next) => {
                 avatarUrl: result.secure_url,
                 avatarPublicId: result.public_id,
             },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                avatarUrl: true,
-                role: true,
-                createdAt: true,
-                updatedAt: true,
-            },
+            select: userSelect,
         });
 
-        res.json(updatedUser);
+        res.json(formatUser(updatedUser));
     } catch (error) {
         next(error);
     }
@@ -120,22 +129,108 @@ export const deleteMyAvatar = async (req, res, next) => {
                 avatarUrl: null,
                 avatarPublicId: null,
             },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                avatarUrl: true,
-                role: true,
-                createdAt: true,
-                updatedAt: true,
-            },
+            select: userSelect,
         });
 
         res.json({
             message: "Avatar deleted successfully",
-            user: updatedUser,
+            user: formatUser(updatedUser),
         });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getMyLikedAnimals = async (req, res, next) => {
+    try {
+        const likedAnimals = await prisma.userLikedAnimal.findMany({
+            where: { userId: req.user.id },
+            include: {
+                animal: {
+                    include: animalInclude,
+                },
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+
+        res.json(likedAnimals.map(formatLikedAnimal));
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const likeAnimal = async (req, res, next) => {
+    try {
+        const { animalId } = req.params;
+
+        const animal = await prisma.animal.findUnique({
+            where: { id: animalId },
+            select: { id: true },
+        });
+
+        if (!animal) {
+            return res.status(404).json({ message: "Animal not found" });
+        }
+
+        const existingLikedAnimal = await prisma.userLikedAnimal.findUnique({
+            where: {
+                userId_animalId: {
+                    userId: req.user.id,
+                    animalId,
+                },
+            },
+            include: {
+                animal: {
+                    include: animalInclude,
+                },
+            },
+        });
+
+        if (existingLikedAnimal) {
+            return res.json(formatLikedAnimal(existingLikedAnimal));
+        }
+
+        const likedAnimal = await prisma.userLikedAnimal.create({
+            data: {
+                userId: req.user.id,
+                animalId,
+            },
+            include: {
+                animal: {
+                    include: animalInclude,
+                },
+            },
+        });
+
+        res.status(201).json(formatLikedAnimal(likedAnimal));
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const unlikeAnimal = async (req, res, next) => {
+    try {
+        const { animalId } = req.params;
+
+        const animal = await prisma.animal.findUnique({
+            where: { id: animalId },
+            select: { id: true },
+        });
+
+        if (!animal) {
+            return res.status(404).json({ message: "Animal not found" });
+        }
+
+        await prisma.userLikedAnimal.deleteMany({
+            where: {
+                userId: req.user.id,
+                animalId,
+            },
+        });
+
+        res.json({ message: "Animal removed from liked animals" });
     } catch (error) {
         next(error);
     }

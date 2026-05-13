@@ -1,10 +1,16 @@
 import { prisma } from "../lib/prisma.js";
+import {
+    normalizeAnimalGender,
+    normalizeAnimalType,
+} from "../utils/animalEnums.js";
 
 export const getAllAnimals = async (req, res, next) => {
     try {
         const {
             type,
+            category,
             gender,
+            city,
             status,
             search,
             page = 1,
@@ -12,10 +18,20 @@ export const getAllAnimals = async (req, res, next) => {
         } = req.query;
 
         const skip = (Number(page) - 1) * Number(limit);
+        const animalType = normalizeAnimalType(category ?? type);
+        const animalGender = normalizeAnimalGender(gender);
 
         const where = {
-            ...(type && { type }),
-            ...(gender && { gender }),
+            ...(animalType && { type: animalType }),
+            ...(animalGender && { gender: animalGender }),
+            ...(city && {
+                shelter: {
+                    city: {
+                        contains: city,
+                        mode: "insensitive",
+                    },
+                },
+            }),
             ...(status && { status }),
             ...(search && {
                 OR: [
@@ -90,11 +106,21 @@ export const createAnimal = async (req, res, next) => {
             shelterId,
         } = req.body;
 
+        const shelter = await prisma.shelter.findUnique({
+            where: { id: shelterId },
+            select: { city: true },
+        });
+
+        if (!shelter) {
+            return res.status(404).json({ message: "Shelter not found" });
+        }
+
         const animal = await prisma.animal.create({
             data: {
                 name,
                 type,
                 gender,
+                city: shelter.city,
                 age,
                 breed,
                 healthStatus,
@@ -113,10 +139,32 @@ export const createAnimal = async (req, res, next) => {
 export const updateAnimal = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const { shelterId, city, ...rest } = req.body;
+
+        let shelterData = {};
+
+        if (shelterId !== undefined) {
+            const shelter = await prisma.shelter.findUnique({
+                where: { id: shelterId },
+                select: { city: true },
+            });
+
+            if (!shelter) {
+                return res.status(404).json({ message: "Shelter not found" });
+            }
+
+            shelterData = {
+                shelterId,
+                city: shelter.city,
+            };
+        }
 
         const animal = await prisma.animal.update({
             where: { id },
-            data: req.body,
+            data: {
+                ...rest,
+                ...shelterData,
+            },
         });
 
         res.json(animal);
