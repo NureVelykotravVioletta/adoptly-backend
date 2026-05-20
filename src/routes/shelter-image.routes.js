@@ -5,6 +5,7 @@ import { upload } from "../middlewares/upload.middleware.js";
 import {
     addShelterImage,
     deleteShelterImage,
+    deleteShelterImageByUrl,
 } from "../controllers/shelter-image.controller.js";
 
 const router = Router();
@@ -15,6 +16,21 @@ router.post(
     allowRoles("ADMIN"),
     upload.single("image"),
     addShelterImage
+);
+
+router.post(
+    "/:id/photo",
+    authMiddleware,
+    allowRoles("ADMIN"),
+    upload.single("image"),
+    addShelterImage
+);
+
+router.delete(
+    "/:id/photo/:url",
+    authMiddleware,
+    allowRoles("ADMIN"),
+    deleteShelterImageByUrl
 );
 
 router.delete(

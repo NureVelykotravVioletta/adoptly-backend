@@ -6,6 +6,7 @@ import {
     uploadMyAvatar,
     deleteMyAvatar,
     getMyLikedAnimals,
+    getMyAdoptedAnimals,
     likeAnimal,
     unlikeAnimal,
 } from "../controllers/user.controller.js";
@@ -18,6 +19,7 @@ const router = Router();
 router.get("/me", authMiddleware, getMe);
 router.put("/me", authMiddleware, validate(updateMeSchema), updateMe);
 router.get("/me/liked-animals", authMiddleware, getMyLikedAnimals);
+router.get("/me/adopted-animals", authMiddleware, getMyAdoptedAnimals);
 router.post("/me/liked-animals/:animalId", authMiddleware, likeAnimal);
 router.delete("/me/liked-animals/:animalId", authMiddleware, unlikeAnimal);
 

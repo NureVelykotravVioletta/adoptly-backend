@@ -1,4 +1,6 @@
 import { prisma } from "../lib/prisma.js";
+import cloudinary from "../lib/cloudinary.js";
+import { uploadToCloudinary } from "../utils/uploadToCloudinary.js";
 
 export const getArticles = async (req, res, next) => {
     try {
@@ -62,12 +64,25 @@ export const getArticleById = async (req, res, next) => {
 export const createArticle = async (req, res, next) => {
     try {
         const { title, content, imageUrl } = req.body;
+        let articleImage = {
+            imageUrl,
+            imagePublicId: null,
+        };
+
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file.buffer);
+
+            articleImage = {
+                imageUrl: result.secure_url,
+                imagePublicId: result.public_id,
+            };
+        }
 
         const article = await prisma.article.create({
             data: {
                 title,
                 content,
-                imageUrl,
+                ...articleImage,
             },
         });
 
@@ -77,9 +92,68 @@ export const createArticle = async (req, res, next) => {
     }
 };
 
+export const updateArticle = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { title, content, imageUrl } = req.body;
+
+        const existingArticle = await prisma.article.findUnique({
+            where: { id },
+        });
+
+        if (!existingArticle) {
+            return res.status(404).json({ message: "Article not found" });
+        }
+
+        const data = {
+            title,
+            content,
+        };
+
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file.buffer);
+
+            data.imageUrl = result.secure_url;
+            data.imagePublicId = result.public_id;
+
+            if (existingArticle.imagePublicId) {
+                await cloudinary.uploader.destroy(existingArticle.imagePublicId);
+            }
+        } else if (imageUrl !== undefined) {
+            data.imageUrl = imageUrl;
+            data.imagePublicId = null;
+
+            if (existingArticle.imagePublicId) {
+                await cloudinary.uploader.destroy(existingArticle.imagePublicId);
+            }
+        }
+
+        const article = await prisma.article.update({
+            where: { id },
+            data,
+        });
+
+        res.json(article);
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const deleteArticle = async (req, res, next) => {
     try {
         const { id } = req.params;
+
+        const article = await prisma.article.findUnique({
+            where: { id },
+        });
+
+        if (!article) {
+            return res.status(404).json({ message: "Article not found" });
+        }
+
+        if (article.imagePublicId) {
+            await cloudinary.uploader.destroy(article.imagePublicId);
+        }
 
         await prisma.article.delete({
             where: { id },

@@ -59,3 +59,32 @@ export const deleteShelterImage = async (req, res, next) => {
         next(error);
     }
 };
+
+export const deleteShelterImageByUrl = async (req, res, next) => {
+    try {
+        const { id, url: imageUrl } = req.params;
+
+        const image = await prisma.shelterImage.findFirst({
+            where: {
+                shelterId: id,
+                imageUrl,
+            },
+        });
+
+        if (!image) {
+            return res.status(404).json({ message: "Shelter image not found" });
+        }
+
+        if (image.publicId) {
+            await cloudinary.uploader.destroy(image.publicId);
+        }
+
+        await prisma.shelterImage.delete({
+            where: { id: image.id },
+        });
+
+        res.json({ message: "Shelter image deleted successfully" });
+    } catch (error) {
+        next(error);
+    }
+};

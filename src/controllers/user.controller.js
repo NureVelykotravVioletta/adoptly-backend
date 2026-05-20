@@ -24,6 +24,12 @@ const userSelect = {
             createdAt: "desc",
         },
     },
+    adoptedAnimals: {
+        include: animalInclude,
+        orderBy: {
+            updatedAt: "desc",
+        },
+    },
     createdAt: true,
     updatedAt: true,
 };
@@ -156,6 +162,22 @@ export const getMyLikedAnimals = async (req, res, next) => {
         });
 
         res.json(likedAnimals.map(formatLikedAnimal));
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getMyAdoptedAnimals = async (req, res, next) => {
+    try {
+        const adoptedAnimals = await prisma.animal.findMany({
+            where: { adoptedById: req.user.id },
+            include: animalInclude,
+            orderBy: {
+                updatedAt: "desc",
+            },
+        });
+
+        res.json(adoptedAnimals);
     } catch (error) {
         next(error);
     }

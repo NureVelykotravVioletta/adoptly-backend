@@ -130,6 +130,36 @@ export const getShelterById = async (req, res, next) => {
     }
 };
 
+export const getShelterAnimals = async (req, res, next) => {
+    try {
+        const { shelterId } = req.params;
+
+        const shelter = await prisma.shelter.findUnique({
+            where: { id: shelterId },
+            select: { id: true },
+        });
+
+        if (!shelter) {
+            return res.status(404).json({ message: "Shelter not found" });
+        }
+
+        const animals = await prisma.animal.findMany({
+            where: { shelterId },
+            include: {
+                images: true,
+                shelter: true,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+
+        res.json(animals);
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const createShelter = async (req, res, next) => {
     try {
         const {

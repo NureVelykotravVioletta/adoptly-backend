@@ -22,11 +22,13 @@ app.get("/", (req, res) => {
 
 app.use("/animals", animalRoutes);
 app.use("/shelters", shelterRoutes);
+app.use("/shelter", shelterRoutes);
 app.use("/auth", authRoutes);
 app.use("/applications", applicationRoutes);
 app.use("/users", userRoutes);
 app.use("/animals", animalImageRoutes);
 app.use("/shelters", shelterImageRoutes);
+app.use("/shelter", shelterImageRoutes);
 app.use("/reminders", reminderRoutes);
 app.use("/articles", articleRoutes);
 app.use(errorMiddleware);

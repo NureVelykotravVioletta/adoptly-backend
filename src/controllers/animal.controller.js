@@ -22,13 +22,16 @@ export const getAllAnimals = async (req, res, next) => {
         const animalGender = normalizeAnimalGender(gender);
 
         const where = {
+            shelterId: { not: null },
             ...(animalType && { type: animalType }),
             ...(animalGender && { gender: animalGender }),
             ...(city && {
                 shelter: {
-                    city: {
-                        contains: city,
-                        mode: "insensitive",
+                    is: {
+                        city: {
+                            contains: city,
+                            mode: "insensitive",
+                        },
                     },
                 },
             }),
@@ -183,6 +186,44 @@ export const deleteAnimal = async (req, res, next) => {
         });
 
         res.json({ message: "Animal deleted successfully" });
+    } catch (error) {
+        console.error(error);
+        next(error);
+    }
+};
+
+export const removeAnimalFromShelter = async (req, res, next) => {
+    try {
+        const { shelterId, animalId } = req.params;
+
+        const animal = await prisma.animal.findFirst({
+            where: {
+                id: animalId,
+                shelterId,
+            },
+        });
+
+        if (!animal) {
+            return res.status(404).json({ message: "Animal not found in this shelter" });
+        }
+
+        const updatedAnimal = await prisma.animal.update({
+            where: { id: animalId },
+            data: {
+                shelter: {
+                    disconnect: true,
+                },
+            },
+            include: {
+                images: true,
+                shelter: true,
+            },
+        });
+
+        res.json({
+            message: "Animal removed from shelter successfully",
+            animal: updatedAnimal,
+        });
     } catch (error) {
         console.error(error);
         next(error);

@@ -49,8 +49,9 @@ model User {
 
   applications AdoptionApplication[]
 
-  reminders    CareReminder[]
-  likedAnimals UserLikedAnimal[]
+  reminders      CareReminder[]
+  likedAnimals   UserLikedAnimal[]
+  adoptedAnimals Animal[]          @relation("UserAdoptedAnimals")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -95,8 +96,11 @@ model Animal {
   description  String
   status       AnimalStatus @default(AVAILABLE)
 
-  shelter   Shelter @relation(fields: [shelterId], references: [id], onDelete: Cascade)
-  shelterId String
+  shelter   Shelter? @relation(fields: [shelterId], references: [id], onDelete: SetNull)
+  shelterId String?
+
+  adoptedBy   User?   @relation("UserAdoptedAnimals", fields: [adoptedById], references: [id], onDelete: SetNull)
+  adoptedById String?
 
   images       AnimalImage[]
   applications AdoptionApplication[]
@@ -105,6 +109,8 @@ model Animal {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([adoptedById])
 }
 
 model UserLikedAnimal {
@@ -166,9 +172,10 @@ enum ReminderStatus {
 }
 
 model Article {
-  id        String   @id @default(uuid())
-  title     String
-  content   String
-  imageUrl  String?
-  createdAt DateTime @default(now())
+  id            String   @id @default(uuid())
+  title         String
+  content       String
+  imageUrl      String?
+  imagePublicId String?
+  createdAt     DateTime @default(now())
 }
