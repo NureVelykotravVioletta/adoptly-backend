@@ -1,8 +1,11 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../lib/prisma.js";
 import { transporter } from "../lib/mailer.js";
 import { generateToken } from "../utils/jwt.js";
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const register = async (req, res, next) => {
     try {
@@ -59,7 +62,7 @@ export const login = async (req, res, next) => {
             where: { email },
         });
 
-        if (!user) {
+        if (!user || !user.passwordHash) {
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
@@ -159,6 +162,65 @@ export const forgotPassword = async (req, res, next) => {
 
         res.json({
             message: "If an account with this email exists, a reset link has been sent.",
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const googleLogin = async (req, res, next) => {
+    try {
+        const { idToken } = req.body;
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const { sub: googleId, email, name, picture } = ticket.getPayload();
+
+        let user = await prisma.user.findUnique({ where: { googleId } });
+
+        if (!user) {
+            user = await prisma.user.findUnique({ where: { email } });
+
+            if (user) {
+                user = await prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        googleId,
+                        avatarUrl: user.avatarUrl || picture,
+                    },
+                });
+            } else {
+                user = await prisma.user.create({
+                    data: {
+                        name,
+                        email,
+                        googleId,
+                        avatarUrl: picture,
+                    },
+                });
+            }
+        }
+
+        const token = generateToken({
+            id: user.id,
+            email: user.email,
+            role: user.role,
+        });
+
+        res.json({
+            message: "Login successful",
+            token,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                avatarUrl: user.avatarUrl,
+                role: user.role,
+            },
         });
     } catch (error) {
         next(error);

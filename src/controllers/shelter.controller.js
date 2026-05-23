@@ -23,8 +23,12 @@ export const getAllShelters = async (req, res, next) => {
             }),
             ...(city && {
                 city: {
-                    contains: city,
-                    mode: "insensitive",
+                    is: {
+                        name: {
+                            contains: city,
+                            mode: "insensitive",
+                        },
+                    },
                 },
             }),
             ...(search && {
@@ -43,8 +47,12 @@ export const getAllShelters = async (req, res, next) => {
                     },
                     {
                         city: {
-                            contains: search,
-                            mode: "insensitive",
+                            is: {
+                                name: {
+                                    contains: search,
+                                    mode: "insensitive",
+                                },
+                            },
                         },
                     },
                     {
@@ -61,6 +69,7 @@ export const getAllShelters = async (req, res, next) => {
             prisma.shelter.findMany({
                 where,
                 include: {
+                    city: true,
                     images: true,
                     _count: {
                         select: {
@@ -103,10 +112,12 @@ export const getShelterById = async (req, res, next) => {
         const shelter = await prisma.shelter.findUnique({
             where: { id },
             include: {
+                city: true,
                 images: true,
                 animals: {
                     include: {
                         images: true,
+                        breed: true,
                     },
                 },
                 _count: {
@@ -147,7 +158,8 @@ export const getShelterAnimals = async (req, res, next) => {
             where: { shelterId },
             include: {
                 images: true,
-                shelter: true,
+                breed: true,
+                shelter: { include: { city: true } },
             },
             orderBy: {
                 createdAt: "desc",
@@ -177,13 +189,19 @@ export const createShelter = async (req, res, next) => {
             data: {
                 name,
                 description,
-                city,
+                city: {
+                    connectOrCreate: {
+                        where: { name: city },
+                        create: { name: city },
+                    },
+                },
                 address,
                 phone,
                 email,
                 foundationDate: foundationDate ? new Date(foundationDate) : null,
                 workingHours,
             },
+            include: { city: true },
         });
 
         res.status(201).json(shelter);
@@ -195,27 +213,26 @@ export const createShelter = async (req, res, next) => {
 export const updateShelter = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { foundationDate, ...rest } = req.body;
+        const { foundationDate, city, ...rest } = req.body;
 
-        const [shelter] = await prisma.$transaction([
-            prisma.shelter.update({
-                where: { id },
-                data: {
-                    ...rest,
-                    ...(foundationDate !== undefined && {
-                        foundationDate: foundationDate ? new Date(foundationDate) : null,
-                    }),
-                },
-            }),
-            ...(rest.city !== undefined
-                ? [
-                      prisma.animal.updateMany({
-                          where: { shelterId: id },
-                          data: { city: rest.city },
-                      }),
-                  ]
-                : []),
-        ]);
+        const shelter = await prisma.shelter.update({
+            where: { id },
+            data: {
+                ...rest,
+                ...(foundationDate !== undefined && {
+                    foundationDate: foundationDate ? new Date(foundationDate) : null,
+                }),
+                ...(city !== undefined && {
+                    city: {
+                        connectOrCreate: {
+                            where: { name: city },
+                            create: { name: city },
+                        },
+                    },
+                }),
+            },
+            include: { city: true },
+        });
 
         res.json(shelter);
     } catch (error) {

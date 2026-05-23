@@ -39,7 +39,8 @@ model User {
   id                   String    @id @default(uuid())
   name                 String
   email                String    @unique
-  passwordHash         String
+  passwordHash         String?
+  googleId             String?   @unique
   phone                String?
   role                 UserRole  @default(USER)
   avatarUrl            String?
@@ -57,16 +58,36 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+model City {
+  id   String @id @default(uuid())
+  name String @unique
+
+  shelters Shelter[]
+
+  createdAt DateTime @default(now())
+}
+
+model Breed {
+  id   String @id @default(uuid())
+  name String @unique
+
+  animals Animal[]
+
+  createdAt DateTime @default(now())
+}
+
 model Shelter {
   id             String    @id @default(uuid())
   name           String
   description    String
-  city           String    @default("Невідоме місто")
   address        String
   phone          String
   email          String
   foundationDate DateTime?
   workingHours   String?
+
+  city   City   @relation(fields: [cityId], references: [id])
+  cityId String
 
   animals Animal[]
   images  ShelterImage[]
@@ -89,12 +110,13 @@ model Animal {
   name         String
   type         AnimalType
   gender       AnimalGender
-  city         String       @default("Невідоме місто")
   age          Int
-  breed        String?
   healthStatus String
   description  String
   status       AnimalStatus @default(AVAILABLE)
+
+  breed   Breed?  @relation(fields: [breedId], references: [id])
+  breedId String?
 
   shelter   Shelter? @relation(fields: [shelterId], references: [id], onDelete: SetNull)
   shelterId String?

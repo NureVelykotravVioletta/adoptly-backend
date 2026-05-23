@@ -1,5 +1,0 @@
-ALTER TABLE "Animal" DROP CONSTRAINT "Animal_shelterId_fkey";
-
-ALTER TABLE "Animal" ALTER COLUMN "shelterId" DROP NOT NULL;
-
-ALTER TABLE "Animal" ADD CONSTRAINT "Animal_shelterId_fkey" FOREIGN KEY ("shelterId") REFERENCES "Shelter"("id") ON DELETE SET NULL ON UPDATE CASCADE;

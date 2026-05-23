@@ -16,7 +16,6 @@ export const createAnimalSchema = z.object({
         normalizeAnimalGender,
         z.enum(animalGenderValues)
     ),
-    city: z.string().optional(),
     age: z.number().int().nonnegative(),
     breed: z.string().optional(),
     healthStatus: z.string().min(1, "Health status is required"),

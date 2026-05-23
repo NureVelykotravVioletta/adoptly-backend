@@ -22,24 +22,27 @@ export const getAllAnimals = async (req, res, next) => {
         const animalGender = normalizeAnimalGender(gender);
 
         const where = {
-            shelterId: { not: null },
+            shelter: city
+                ? {
+                      is: {
+                          city: {
+                              is: {
+                                  name: {
+                                      contains: city,
+                                      mode: "insensitive",
+                                  },
+                              },
+                          },
+                      },
+                  }
+                : { isNot: null },
             ...(animalType && { type: animalType }),
             ...(animalGender && { gender: animalGender }),
-            ...(city && {
-                shelter: {
-                    is: {
-                        city: {
-                            contains: city,
-                            mode: "insensitive",
-                        },
-                    },
-                },
-            }),
             ...(status && { status }),
             ...(search && {
                 OR: [
                     { name: { contains: search, mode: "insensitive" } },
-                    { breed: { contains: search, mode: "insensitive" } },
+                    { breed: { name: { contains: search, mode: "insensitive" } } },
                     { description: { contains: search, mode: "insensitive" } },
                 ],
             }),
@@ -50,7 +53,8 @@ export const getAllAnimals = async (req, res, next) => {
                 where,
                 include: {
                     images: true,
-                    shelter: true,
+                    breed: true,
+                    shelter: { include: { city: true } },
                 },
                 skip,
                 take: Number(limit),
@@ -81,7 +85,8 @@ export const getAnimalById = async (req, res, next) => {
             where: { id },
             include: {
                 images: true,
-                shelter: true,
+                breed: true,
+                shelter: { include: { city: true } },
             },
         });
 
@@ -111,7 +116,7 @@ export const createAnimal = async (req, res, next) => {
 
         const shelter = await prisma.shelter.findUnique({
             where: { id: shelterId },
-            select: { city: true },
+            select: { id: true },
         });
 
         if (!shelter) {
@@ -123,13 +128,20 @@ export const createAnimal = async (req, res, next) => {
                 name,
                 type,
                 gender,
-                city: shelter.city,
                 age,
-                breed,
                 healthStatus,
                 description,
                 shelterId,
+                ...(breed && {
+                    breed: {
+                        connectOrCreate: {
+                            where: { name: breed },
+                            create: { name: breed },
+                        },
+                    },
+                }),
             },
+            include: { breed: true, shelter: { include: { city: true } } },
         });
 
         res.status(201).json(animal);
@@ -142,24 +154,21 @@ export const createAnimal = async (req, res, next) => {
 export const updateAnimal = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { shelterId, city, ...rest } = req.body;
+        const { shelterId, breed, ...rest } = req.body;
 
         let shelterData = {};
 
         if (shelterId !== undefined) {
             const shelter = await prisma.shelter.findUnique({
                 where: { id: shelterId },
-                select: { city: true },
+                select: { id: true },
             });
 
             if (!shelter) {
                 return res.status(404).json({ message: "Shelter not found" });
             }
 
-            shelterData = {
-                shelterId,
-                city: shelter.city,
-            };
+            shelterData = { shelterId };
         }
 
         const animal = await prisma.animal.update({
@@ -167,7 +176,18 @@ export const updateAnimal = async (req, res, next) => {
             data: {
                 ...rest,
                 ...shelterData,
+                ...(breed !== undefined && {
+                    breed: breed
+                        ? {
+                              connectOrCreate: {
+                                  where: { name: breed },
+                                  create: { name: breed },
+                              },
+                          }
+                        : { disconnect: true },
+                }),
             },
+            include: { breed: true, shelter: { include: { city: true } } },
         });
 
         res.json(animal);
@@ -216,7 +236,8 @@ export const removeAnimalFromShelter = async (req, res, next) => {
             },
             include: {
                 images: true,
-                shelter: true,
+                breed: true,
+                shelter: { include: { city: true } },
             },
         });
 

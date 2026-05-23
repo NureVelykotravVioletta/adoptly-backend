@@ -56,8 +56,9 @@ export const createApplication = async (req, res, next) => {
                 user: true,
                 animal: {
                     include: {
-                        shelter: true,
+                        breed: true,
                         images: true,
+                        shelter: { include: { city: true } },
                     },
                 },
             },
@@ -86,8 +87,9 @@ export const getMyApplications = async (req, res, next) => {
             include: {
                 animal: {
                     include: {
+                        breed: true,
                         images: true,
-                        shelter: true,
+                        shelter: { include: { city: true } },
                     },
                 },
             },
@@ -116,8 +118,9 @@ export const getApplications = async (req, res, next) => {
                 user: true,
                 animal: {
                     include: {
+                        breed: true,
                         images: true,
-                        shelter: true,
+                        shelter: { include: { city: true } },
                     },
                 },
             },
@@ -199,7 +202,13 @@ export const updateApplicationStatus = async (req, res, next) => {
                 where: { id },
                 include: {
                     user: true,
-                    animal: true,
+                    animal: {
+                        include: {
+                            breed: true,
+                            images: true,
+                            shelter: { include: { city: true } },
+                        },
+                    },
                 },
             });
         });
